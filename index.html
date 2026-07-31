@@ -232,7 +232,6 @@
           <div class="slider-top"><span class="name">Speed:</span><span class="val" id="speedVal">2.3x</span></div>
           <input type="range" id="speedSlider" min="0.5" max="3.5" step="0.1" value="2.3">
           <div class="playback-hint" id="playbackHint">📌 Di in-game, set <b>Sound.PlaybackSpeed</b> ke <b id="speedPlaybackInline">0.43</b> agar tempo audio kembali normal.</div>
-          <div class="playback-hint" id="qualityHint">🎧 Kualitas audio efektif setelah PlaybackSpeed dikembalikan: hingga <b id="qualityKhz">~10.4 kHz</b> (semakin tinggi Speed, semakin banyak treble asli yang hilang karena batas 48kHz Roblox — turunkan Speed untuk hasil lebih jernih).</div>
         </div>
 
         <div class="slider-block">
@@ -276,6 +275,7 @@
       <button class="fmt-btn" id="btnFlac">FLAC<small>lossless, tanpa kompresi kualitas</small></button>
       <button class="fmt-btn" id="btnWav">WAV<small>PCM mentah, instan</small></button>
     </div>
+    <div class="note" id="randomNameNote" style="display:none;">🎲 Nama file hasil unduhan otomatis diacak jadi angka polos (6–10 digit). Nama acak seperti ini berpeluang lebih besar lolos saat di-upload sebagai Audio asset di Roblox dibanding nama file yang deskriptif.</div>
   </div>
 
 </div>
@@ -332,6 +332,7 @@ const processBtn = document.getElementById('processBtn');
 const statusEl = document.getElementById('status');
 const preview = document.getElementById('preview');
 const fmtRow = document.getElementById('fmtRow');
+const randomNameNote = document.getElementById('randomNameNote');
 const progOuter = document.getElementById('progOuter');
 const progInner = document.getElementById('progInner');
 const btnMp3 = document.getElementById('btnMp3');
@@ -350,21 +351,12 @@ const hdrAmp = document.getElementById('hdrAmp');
 const hdrMax = document.getElementById('hdrMax');
 const hdrPlayback = document.getElementById('hdrPlayback');
 const speedPlaybackInline = document.getElementById('speedPlaybackInline');
-const qualityKhz = document.getElementById('qualityKhz');
 const presets = document.querySelectorAll('.preset');
 
 // PlaybackSpeed yang perlu di-set di Sound instance Roblox supaya tempo audio
 // kembali normal setelah di-speed-up saat export (kebalikan dari faktor Speed).
 function computePlayback(speed){
   return (1 / speed).toFixed(2);
-}
-
-// Batas Nyquist keluaran (48kHz -> 24kHz) dibagi faktor speed = frekuensi asli
-// tertinggi yang masih selamat setelah PlaybackSpeed dikembalikan ke normal di game.
-// Ini penyebab utama kesan "muffled" pada speed tinggi (2.3x-2.5x), bukan preset EQ.
-function computeEffectiveBandwidthKhz(speed){
-  const nyquist = ROBLOX_MAX_SAMPLE_RATE / 2; // 24000
-  return (nyquist / speed / 1000);
 }
 
 function updateSliderFill(el){
@@ -384,7 +376,6 @@ function refreshLabels(){
   hdrMax.textContent = mx+'s';
   hdrPlayback.textContent = playback;
   speedPlaybackInline.textContent = playback;
-  qualityKhz.textContent = '~' + computeEffectiveBandwidthKhz(parseFloat(sp)).toFixed(1) + ' kHz';
   updateSliderFill(speedSlider); updateSliderFill(ampSlider); updateSliderFill(maxSlider);
   setWaveSpeed(parseFloat(sp));
 }
@@ -478,7 +469,7 @@ fileInput.addEventListener('change', e=>{
 
 async function loadFile(file){
   setStatus('Membaca file...', '');
-  fmtRow.style.display='none';
+  fmtRow.style.display='none'; randomNameNote.style.display='none';
   preview.style.display='none';
   processBtn.disabled = true;
   renderedBuffer = null;
@@ -509,7 +500,7 @@ processBtn.addEventListener('click', async ()=>{
   if(!originalBuffer || isProcessing || isExporting) return;
   isProcessing = true;
   processBtn.disabled = true;
-  fmtRow.style.display = 'none';
+  fmtRow.style.display = 'none'; randomNameNote.style.display = 'none';
   setStatus('Memproses audio...', '');
   try{
     const speed = parseFloat(speedSlider.value);
@@ -606,7 +597,7 @@ processBtn.addEventListener('click', async ()=>{
     currentPreviewURL = URL.createObjectURL(wavBlob);
     preview.src = currentPreviewURL;
     preview.style.display = 'block';
-    fmtRow.style.display = 'flex';
+    fmtRow.style.display = 'flex'; randomNameNote.style.display = 'block';
     setStatus(`Selesai — durasi hasil: ${outDuration.toFixed(1)}s. Pilih format unduhan.`, 'ok');
   }catch(err){
     console.error(err);
@@ -661,6 +652,16 @@ function downloadBlob(blob, filename){
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+// ---------- Random filename (6-10 digit) ----------
+// Nama file hasil export diacak jadi angka polos (bukan "xxx_converted") supaya
+// tidak terlihat mencurigakan/ditandai saat di-upload sebagai Audio asset di Roblox.
+function randomDigitName(){
+  const len = 6 + Math.floor(Math.random() * 5); // 6..10 digit
+  let s = String(1 + Math.floor(Math.random() * 9)); // digit pertama tidak 0
+  for(let i = 1; i < len; i++) s += String(Math.floor(Math.random() * 10));
+  return s;
 }
 
 // Peringatan jika hasil akhirnya ternyata melebihi batas ukuran upload Roblox (20MB)
@@ -719,7 +720,7 @@ btnMp3.addEventListener('click', ()=>{
     const end = encoder.flush();
     if(end.length>0) chunks.push(new Uint8Array(end));
     const blob = new Blob(chunks, {type:'audio/mp3'});
-    downloadBlob(blob, currentFileBase+'_converted.mp3');
+    downloadBlob(blob, randomDigitName()+'.mp3');
     const warn = checkRobloxSize(blob);
     setStatus(warn || 'MP3 berhasil diunduh.', warn ? 'err' : 'ok');
   }catch(err){
@@ -827,7 +828,7 @@ btnOgg.addEventListener('click', async ()=>{
   beginExport('Meng-encode OGG (Opus)...');
   try{
     const blob = await encodeOggOpus(renderedBuffer, p=>{ progInner.style.width = (p*100)+'%'; });
-    downloadBlob(blob, currentFileBase+'_converted.ogg');
+    downloadBlob(blob, randomDigitName()+'.ogg');
     const warn = checkRobloxSize(blob);
     setStatus(warn || 'OGG berhasil diunduh.', warn ? 'err' : 'ok');
   }catch(err){
@@ -869,7 +870,7 @@ btnFlac.addEventListener('click', ()=>{
         worker.removeEventListener('message', handleMessage);
         progInner.style.width = '100%';
         const blob = new Blob([data.data], {type:'audio/flac'});
-        downloadBlob(blob, currentFileBase+'_converted.flac');
+        downloadBlob(blob, randomDigitName()+'.flac');
         const warn = checkRobloxSize(blob);
         setStatus((warn?warn+' ':'')+'FLAC berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
         finishExport();
@@ -897,7 +898,7 @@ btnWav.addEventListener('click', ()=>{
   progInner.style.width = '100%';
   try{
     const blob = bufferToWav(renderedBuffer);
-    downloadBlob(blob, currentFileBase+'_converted.wav');
+    downloadBlob(blob, randomDigitName()+'.wav');
     const warn = checkRobloxSize(blob);
     setStatus((warn?warn+' ':'')+'WAV berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
   }catch(err){
