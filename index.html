@@ -232,6 +232,7 @@
           <div class="slider-top"><span class="name">Speed:</span><span class="val" id="speedVal">2.3x</span></div>
           <input type="range" id="speedSlider" min="0.5" max="3.5" step="0.1" value="2.3">
           <div class="playback-hint" id="playbackHint">📌 Di in-game, set <b>Sound.PlaybackSpeed</b> ke <b id="speedPlaybackInline">0.43</b> agar tempo audio kembali normal.</div>
+          <div class="playback-hint" id="qualityHint">🎧 Kualitas audio efektif setelah PlaybackSpeed dikembalikan: hingga <b id="qualityKhz">~10.4 kHz</b> (semakin tinggi Speed, semakin banyak treble asli yang hilang karena batas 48kHz Roblox — turunkan Speed untuk hasil lebih jernih).</div>
         </div>
 
         <div class="slider-block">
@@ -349,12 +350,21 @@ const hdrAmp = document.getElementById('hdrAmp');
 const hdrMax = document.getElementById('hdrMax');
 const hdrPlayback = document.getElementById('hdrPlayback');
 const speedPlaybackInline = document.getElementById('speedPlaybackInline');
+const qualityKhz = document.getElementById('qualityKhz');
 const presets = document.querySelectorAll('.preset');
 
 // PlaybackSpeed yang perlu di-set di Sound instance Roblox supaya tempo audio
 // kembali normal setelah di-speed-up saat export (kebalikan dari faktor Speed).
 function computePlayback(speed){
   return (1 / speed).toFixed(2);
+}
+
+// Batas Nyquist keluaran (48kHz -> 24kHz) dibagi faktor speed = frekuensi asli
+// tertinggi yang masih selamat setelah PlaybackSpeed dikembalikan ke normal di game.
+// Ini penyebab utama kesan "muffled" pada speed tinggi (2.3x-2.5x), bukan preset EQ.
+function computeEffectiveBandwidthKhz(speed){
+  const nyquist = ROBLOX_MAX_SAMPLE_RATE / 2; // 24000
+  return (nyquist / speed / 1000);
 }
 
 function updateSliderFill(el){
@@ -374,6 +384,7 @@ function refreshLabels(){
   hdrMax.textContent = mx+'s';
   hdrPlayback.textContent = playback;
   speedPlaybackInline.textContent = playback;
+  qualityKhz.textContent = '~' + computeEffectiveBandwidthKhz(parseFloat(sp)).toFixed(1) + ' kHz';
   updateSliderFill(speedSlider); updateSliderFill(ampSlider); updateSliderFill(maxSlider);
   setWaveSpeed(parseFloat(sp));
 }
@@ -520,10 +531,48 @@ processBtn.addEventListener('click', async ()=>{
     const outDuration = Math.min(segDuration / speed, maxDur);
     const frames = Math.max(1, Math.ceil(outDuration * outSampleRate));
 
+    // ---- Anti-alias pre-filter (mencegah "muffled"/kotor tambahan) ----
+    // Saat playbackRate > 1, semua frekuensi ikut naik sebesar faktor speed. Kalau ada
+    // konten sumber di atas (outSampleRate/2)/speed, ia akan lewat dari batas Nyquist
+    // keluaran (24kHz @ 48kHz) dan bisa ter-alias/foldback jadi noise kasar saat resample
+    // native browser (bukan cuma teredam halus). Filter di bawah ini membersihkan konten
+    // itu DI SAMPLE RATE ASLI (sebelum speed-up), pakai cascade lowpass biquad supaya
+    // roll-off-nya curam & bersih (bukan aliasing), sehingga hasil akhir tetap sejernih
+    // mungkin sampai batas Nyquist yang memang tidak bisa dilewati (lihat computeEffectiveBandwidthKhz).
+    let sourceBuffer = originalBuffer;
+    if (speed > 1) {
+      const antiAliasCutoff = Math.min(
+        (outSampleRate / 2 / speed) * 0.94, // sedikit margin di bawah Nyquist post-shift
+        originalBuffer.sampleRate / 2 - 1
+      );
+      if (antiAliasCutoff > 20 && antiAliasCutoff < originalBuffer.sampleRate / 2) {
+        const preCtx = new OfflineAudioContext(
+          originalBuffer.numberOfChannels,
+          originalBuffer.length,
+          originalBuffer.sampleRate
+        );
+        const preSrc = preCtx.createBufferSource();
+        preSrc.buffer = originalBuffer;
+        let stage = preSrc;
+        const LP_STAGES = 3; // cascade -> roll-off lebih curam & bersih daripada 1 biquad
+        for (let i = 0; i < LP_STAGES; i++) {
+          const lp = preCtx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = antiAliasCutoff;
+          lp.Q.value = 0.7071; // Butterworth-ish, hindari resonansi/peak di cutoff
+          stage.connect(lp);
+          stage = lp;
+        }
+        stage.connect(preCtx.destination);
+        preSrc.start(0);
+        sourceBuffer = await preCtx.startRendering();
+      }
+    }
+
     const offlineCtx = new OfflineAudioContext(outChannels, frames, outSampleRate);
 
     const src = offlineCtx.createBufferSource();
-    src.buffer = originalBuffer;
+    src.buffer = sourceBuffer;
     src.playbackRate.value = speed;
 
     let node = offlineCtx.createGain(); // mix bus
