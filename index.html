@@ -168,6 +168,14 @@
   }
   .note b{color:var(--cyan);}
 
+  .step-hint{
+    font-size:13px;color:var(--text);font-weight:700;text-align:center;
+    margin-top:14px;padding:10px 12px;border-radius:10px;
+    background:rgba(96,165,250,0.1);border:1px dashed var(--magenta);
+    animation:stepPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes stepPulse{0%,100%{opacity:1;}50%{opacity:.65;}}
+
   /* ===== section toggle (EQ) ===== */
   .sec-head{
     display:flex;align-items:center;justify-content:space-between;
@@ -269,13 +277,14 @@
     <div class="status" id="status"></div>
     <audio id="preview" controls style="display:none;"></audio>
 
+    <div class="step-hint" id="stepHint" style="display:none;">👇 Audio siap! Pilih salah satu format di bawah ini untuk menyimpan (unduh) hasilnya.</div>
     <div class="fmt-row" id="fmtRow" style="display:none;">
       <button class="fmt-btn" id="btnMp3">MP3<small>kompatibel & cepat</small></button>
       <button class="fmt-btn" id="btnOgg">OGG<small>opus, ringan & cepat</small></button>
       <button class="fmt-btn" id="btnFlac">FLAC<small>lossless, tanpa kompresi kualitas</small></button>
       <button class="fmt-btn" id="btnWav">WAV<small>PCM mentah, instan</small></button>
     </div>
-    <div class="note" id="randomNameNote" style="display:none;">🎲 Nama file hasil unduhan otomatis diacak jadi angka polos (6–10 digit). Nama acak seperti ini berpeluang lebih besar lolos saat di-upload sebagai Audio asset di Roblox dibanding nama file yang deskriptif.</div>
+    <div class="note" id="randomNameNote" style="display:none;">🎲 Nama file hasil unduhan otomatis diacak jadi kombinasi huruf &amp; angka (6–10 karakter). Nama acak seperti ini berpeluang lebih besar lolos saat di-upload sebagai Audio asset di Roblox dibanding nama file yang deskriptif.</div>
   </div>
 
 </div>
@@ -333,6 +342,7 @@ const statusEl = document.getElementById('status');
 const preview = document.getElementById('preview');
 const fmtRow = document.getElementById('fmtRow');
 const randomNameNote = document.getElementById('randomNameNote');
+const stepHint = document.getElementById('stepHint');
 const progOuter = document.getElementById('progOuter');
 const progInner = document.getElementById('progInner');
 const btnMp3 = document.getElementById('btnMp3');
@@ -469,7 +479,7 @@ fileInput.addEventListener('change', e=>{
 
 async function loadFile(file){
   setStatus('Membaca file...', '');
-  fmtRow.style.display='none'; randomNameNote.style.display='none';
+  fmtRow.style.display='none'; randomNameNote.style.display='none'; stepHint.style.display='none';
   preview.style.display='none';
   processBtn.disabled = true;
   renderedBuffer = null;
@@ -500,7 +510,7 @@ processBtn.addEventListener('click', async ()=>{
   if(!originalBuffer || isProcessing || isExporting) return;
   isProcessing = true;
   processBtn.disabled = true;
-  fmtRow.style.display = 'none'; randomNameNote.style.display = 'none';
+  fmtRow.style.display = 'none'; randomNameNote.style.display = 'none'; stepHint.style.display = 'none';
   setStatus('Memproses audio...', '');
   try{
     const speed = parseFloat(speedSlider.value);
@@ -597,7 +607,7 @@ processBtn.addEventListener('click', async ()=>{
     currentPreviewURL = URL.createObjectURL(wavBlob);
     preview.src = currentPreviewURL;
     preview.style.display = 'block';
-    fmtRow.style.display = 'flex'; randomNameNote.style.display = 'block';
+    fmtRow.style.display = 'flex'; randomNameNote.style.display = 'block'; stepHint.style.display = 'block';
     setStatus(`Selesai — durasi hasil: ${outDuration.toFixed(1)}s. Pilih format unduhan.`, 'ok');
   }catch(err){
     console.error(err);
@@ -654,13 +664,14 @@ function downloadBlob(blob, filename){
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
 
-// ---------- Random filename (6-10 digit) ----------
-// Nama file hasil export diacak jadi angka polos (bukan "xxx_converted") supaya
-// tidak terlihat mencurigakan/ditandai saat di-upload sebagai Audio asset di Roblox.
-function randomDigitName(){
-  const len = 6 + Math.floor(Math.random() * 5); // 6..10 digit
-  let s = String(1 + Math.floor(Math.random() * 9)); // digit pertama tidak 0
-  for(let i = 1; i < len; i++) s += String(Math.floor(Math.random() * 10));
+// ---------- Random filename (6-10 karakter, huruf+angka) ----------
+// Nama file hasil export diacak jadi kombinasi huruf & angka (bukan "xxx_converted")
+// supaya tidak terlihat mencurigakan/ditandai saat di-upload sebagai Audio asset di Roblox.
+function randomAlnumName(){
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const len = 6 + Math.floor(Math.random() * 5); // 6..10 karakter
+  let s = '';
+  for(let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return s;
 }
 
@@ -686,6 +697,7 @@ function beginExport(msg){
   setExportButtonsEnabled(false);
   progOuter.style.display = 'block';
   progInner.style.width = '0%';
+  stepHint.style.display = 'none'; // user sudah memilih format, hint tidak perlu lagi
   setStatus(msg, '');
 }
 
@@ -720,7 +732,7 @@ btnMp3.addEventListener('click', ()=>{
     const end = encoder.flush();
     if(end.length>0) chunks.push(new Uint8Array(end));
     const blob = new Blob(chunks, {type:'audio/mp3'});
-    downloadBlob(blob, randomDigitName()+'.mp3');
+    downloadBlob(blob, randomAlnumName()+'.mp3');
     const warn = checkRobloxSize(blob);
     setStatus(warn || 'MP3 berhasil diunduh.', warn ? 'err' : 'ok');
   }catch(err){
@@ -828,7 +840,7 @@ btnOgg.addEventListener('click', async ()=>{
   beginExport('Meng-encode OGG (Opus)...');
   try{
     const blob = await encodeOggOpus(renderedBuffer, p=>{ progInner.style.width = (p*100)+'%'; });
-    downloadBlob(blob, randomDigitName()+'.ogg');
+    downloadBlob(blob, randomAlnumName()+'.ogg');
     const warn = checkRobloxSize(blob);
     setStatus(warn || 'OGG berhasil diunduh.', warn ? 'err' : 'ok');
   }catch(err){
@@ -870,7 +882,7 @@ btnFlac.addEventListener('click', ()=>{
         worker.removeEventListener('message', handleMessage);
         progInner.style.width = '100%';
         const blob = new Blob([data.data], {type:'audio/flac'});
-        downloadBlob(blob, randomDigitName()+'.flac');
+        downloadBlob(blob, randomAlnumName()+'.flac');
         const warn = checkRobloxSize(blob);
         setStatus((warn?warn+' ':'')+'FLAC berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
         finishExport();
@@ -898,7 +910,7 @@ btnWav.addEventListener('click', ()=>{
   progInner.style.width = '100%';
   try{
     const blob = bufferToWav(renderedBuffer);
-    downloadBlob(blob, randomDigitName()+'.wav');
+    downloadBlob(blob, randomAlnumName()+'.wav');
     const warn = checkRobloxSize(blob);
     setStatus((warn?warn+' ':'')+'WAV berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
   }catch(err){
