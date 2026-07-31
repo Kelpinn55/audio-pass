@@ -1,0 +1,17 @@
+{
+  "name": "wildeon-audio-bypass",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Roblox audio converter (MP3 / OGG / FLAC / WAV) - static site. Vendored encoders + bulk zip export + build-time obfuscation.",
+  "scripts": {
+    "vendor": "node scripts/vendor.js",
+    "build": "node scripts/obfuscate.js"
+  },
+  "devDependencies": {
+    "lamejs": "^1.2.1",
+    "opus-recorder": "^6.0.1",
+    "libflacjs": "^5.6.0",
+    "jszip": "^3.10.1",
+    "javascript-obfuscator": "^5.5.0"
+  }
+}
