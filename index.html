@@ -74,7 +74,36 @@
   .drop:hover, .drop.drag{border-color:var(--cyan);background:rgba(45,216,232,0.05);color:var(--text);}
   .drop b{color:var(--text);}
   #fileInput{display:none;}
-  .filename{margin-top:10px;font-size:13px;color:var(--cyan);word-break:break-all;}
+
+  /* ===== multi-file list ===== */
+  .file-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+  .file-item{
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;
+  }
+  .fi-info{flex:1;min-width:0;}
+  .fi-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fi-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .fi-status{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap;}
+  .fi-status.reading{background:rgba(96,165,250,0.15);color:var(--magenta);}
+  .fi-status.pending{background:rgba(136,152,170,0.15);color:var(--muted);}
+  .fi-status.processing{background:rgba(59,130,246,0.18);color:var(--cyan);}
+  .fi-status.done{background:rgba(59,130,246,0.25);color:var(--cyan);}
+  .fi-status.error{background:rgba(255,107,107,0.15);color:var(--danger);}
+  .fi-preview{background:none;border:none;color:var(--cyan);cursor:pointer;font-size:15px;padding:2px 4px;}
+  .fi-preview:hover{color:var(--magenta);}
+  .fi-remove{
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px;line-height:1;
+  }
+  .fi-remove:hover{color:var(--danger);background:rgba(255,107,107,0.1);}
+  .file-list-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+  .file-list-foot .clear-all{
+    background:none;border:1px solid var(--border);color:var(--muted);
+    font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .file-list-foot .clear-all:hover{border-color:var(--danger);color:var(--danger);}
+  .file-list-foot .count{font-size:11.5px;color:var(--muted);}
 
   /* advanced settings header */
   .adv-head{
@@ -201,6 +230,30 @@
   }
   .eq-val{font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:4px;min-height:12px;}
   .eq-freq{font-size:9px;color:var(--muted);margin-top:4px;}
+
+  /* ===== Process History ===== */
+  .hist-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .hist-head .title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .hist-clear{
+    background:none;border:1px solid var(--border);color:var(--muted);
+    font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .hist-clear:hover{border-color:var(--danger);color:var(--danger);}
+  .history-list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:2px;}
+  .history-empty{font-size:13px;color:var(--muted);text-align:center;padding:20px 0;}
+  .history-item{
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+  }
+  .hi-info{flex:1;min-width:0;}
+  .hi-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hi-meta{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;}
+  .hist-badge{font-size:10px;font-weight:800;padding:4px 9px;border-radius:6px;letter-spacing:.03em;white-space:nowrap;}
+  .hist-badge.mp3{background:rgba(59,130,246,0.18);color:#93c5fd;}
+  .hist-badge.ogg{background:rgba(96,165,250,0.18);color:#bfdbfe;}
+  .hist-badge.flac{background:rgba(34,197,94,0.18);color:#86efac;}
+  .hist-badge.wav{background:rgba(234,179,8,0.18);color:#fde047;}
+  .hist-count{font-size:11px;color:var(--muted);margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -209,17 +262,21 @@
   <div class="hero">
     <div class="eyebrow">Roblox Audio Bypasser</div>
     <h1>by Wildeon Creative</h1>
-    <p class="sub">Upload / Drag audio file kamu &amp; process, lalu unduh sebagai MP3, OGG, FLAC, atau WAV. Di in-game Sound instance, set <b>PlaybackSpeed</b> sesuai nilai yang tertera di Advanced Settings (berubah otomatis mengikuti Speed) supaya tempo audio kembali normal.</p>
+    <p class="sub">Upload / seret <b>satu atau beberapa</b> file audio sekaligus, proses bersamaan, lalu unduh semuanya sebagai MP3, OGG, FLAC, atau WAV. Di in-game Sound instance, set <b>PlaybackSpeed</b> sesuai nilai yang tertera di Advanced Settings (berubah otomatis mengikuti Speed) supaya tempo audio kembali normal.</p>
     <div class="wave" id="wave"></div>
   </div>
 
   <!-- Upload -->
   <div class="card">
     <div class="drop" id="dropZone">
-      <div>🎵 Klik atau seret file audio ke sini<br><b id="dropLabel">(MP3, WAV, OGG, M4A...)</b></div>
-      <div class="filename" id="fileName"></div>
+      <div>🎵 Klik atau seret satu / beberapa file audio ke sini<br><b id="dropLabel">(MP3, WAV, OGG, M4A...)</b></div>
     </div>
-    <input type="file" id="fileInput" accept="audio/*">
+    <input type="file" id="fileInput" accept="audio/*" multiple>
+    <div class="file-list" id="fileList"></div>
+    <div class="file-list-foot" id="fileListFoot" style="display:none;">
+      <span class="count" id="fileCount"></span>
+      <button class="clear-all" id="clearAllBtn">Hapus Semua</button>
+    </div>
   </div>
 
   <!-- Advanced Settings -->
@@ -253,7 +310,6 @@
         </div>
       </div>
     </div>
-    <div class="note">✓ Durasi &amp; kualitas keluaran mengikuti batas resmi upload audio Roblox (create.roblox.com/docs/audio/assets): format <b>MP3 / OGG</b>, ukuran &lt; <b>20MB</b>, durasi maks <b>7 menit (420 detik)</b>, sample rate &le; <b>48kHz</b>. Format <b>FLAC</b> dan <b>WAV</b> disediakan untuk keperluan lain (master/arsip) — Roblox <b>tidak</b> menerima kedua format ini.<br><br>🎯 <b>Playback in-game</b> = 1 &divide; Speed. Contoh: Speed <b>2.3x</b> saat export &rarr; set <b>PlaybackSpeed</b> Sound instance ke <b>0.43</b> di Studio/script agar durasi &amp; nada kembali seperti audio aslinya.</div>
   </div>
 
   <!-- Equalizer -->
@@ -272,19 +328,29 @@
 
   <!-- Process -->
   <div class="card">
-    <button class="btn btn-primary" id="processBtn" disabled>Proses Audio</button>
+    <button class="btn btn-primary" id="processBtn" disabled>Proses Semua Audio</button>
     <div class="progress-outer" id="progOuter"><div class="progress-inner" id="progInner"></div></div>
     <div class="status" id="status"></div>
     <audio id="preview" controls style="display:none;"></audio>
 
-    <div class="step-hint" id="stepHint" style="display:none;">👇 Audio siap! Pilih salah satu format di bawah ini untuk menyimpan (unduh) hasilnya. <br><span style="font-weight:400;">(recommend: <b>OGG</b>)</span></div>
+    <div class="step-hint" id="stepHint" style="display:none;">👇 Audio siap! Pilih salah satu format di bawah ini untuk menyimpan (unduh) <b>seluruh file</b> sekaligus. <br><span style="font-weight:400;">(recommend: <b>OGG</b>)</span></div>
     <div class="fmt-row" id="fmtRow" style="display:none;">
       <button class="fmt-btn" id="btnMp3">MP3<small>kompatibel & cepat</small></button>
       <button class="fmt-btn" id="btnOgg">OGG<small>opus, ringan & cepat</small></button>
       <button class="fmt-btn" id="btnFlac">FLAC<small>lossless, tanpa kompresi kualitas</small></button>
       <button class="fmt-btn" id="btnWav">WAV<small>PCM mentah, instan</small></button>
     </div>
-    <div class="note" id="randomNameNote" style="display:none;">🎲 Nama file hasil unduhan otomatis diacak jadi kombinasi huruf &amp; angka (6–10 karakter). Nama acak seperti ini berpeluang lebih besar lolos saat di-upload sebagai Audio asset di Roblox dibanding nama file yang deskriptif.</div>
+    <div class="note" id="randomNameNote" style="display:none;">🎲 Nama setiap file hasil unduhan otomatis diacak jadi kombinasi huruf &amp; angka (6–10 karakter). Nama acak seperti ini berpeluang lebih besar lolos saat di-upload sebagai Audio asset di Roblox dibanding nama file yang deskriptif. Browser mungkin meminta izin untuk mengunduh banyak file sekaligus — klik "Izinkan".</div>
+  </div>
+
+  <!-- Process History -->
+  <div class="card">
+    <div class="hist-head">
+      <div class="title">📜 Process History</div>
+      <button class="hist-clear" id="histClear">Hapus Riwayat</button>
+    </div>
+    <div class="hist-count" id="histCount"></div>
+    <div class="history-list" id="historyList"></div>
   </div>
 
 </div>
@@ -304,6 +370,8 @@ function setWaveSpeed(mult){
 
 // ---------- Roblox audio-upload compliance constants ----------
 // Sumber: https://create.roblox.com/docs/audio/assets
+// (Batas: format MP3/OGG, ukuran < 20MB, durasi maks 7 menit / 420 detik, sample rate <= 48kHz.
+// FLAC & WAV tetap disediakan untuk keperluan lain / master-arsip, bukan untuk upload ke Roblox.)
 const ROBLOX_MAX_DURATION = 420;                 // 7 menit
 const ROBLOX_MAX_FILE_BYTES = 20 * 1024 * 1024;  // 20 MB
 const ROBLOX_MAX_SAMPLE_RATE = 48000;            // <= 48kHz
@@ -311,12 +379,15 @@ const ROBLOX_MAX_CHANNELS = 2;                   // mono/stereo (paling kompatib
 
 // ---------- state ----------
 let audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-let originalBuffer = null;
-let renderedBuffer = null;
-let currentFileBase = 'audio';
-let currentPreviewURL = null;
 let isProcessing = false;
 let isExporting = false;
+let currentPreviewURL = null;
+
+// ---------- multi-file queue ----------
+// Setiap item: { id, file, name, originalBuffer, renderedBuffer, outDuration, previewURL, status, errorMsg }
+// status: 'reading' | 'pending' | 'processing' | 'done' | 'error'
+let queue = [];
+let idCounter = 0;
 
 // ---------- EQ state (meniru persis dashboard.js) ----------
 const EQ_FREQS = [60,170,310,600,1000,3000,6000,12000,14000,16000];
@@ -336,7 +407,10 @@ let eqGains = new Array(10).fill(0);
 
 const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
-const fileNameEl = document.getElementById('fileName');
+const fileListEl = document.getElementById('fileList');
+const fileListFoot = document.getElementById('fileListFoot');
+const fileCountEl = document.getElementById('fileCount');
+const clearAllBtn = document.getElementById('clearAllBtn');
 const processBtn = document.getElementById('processBtn');
 const statusEl = document.getElementById('status');
 const preview = document.getElementById('preview');
@@ -349,6 +423,9 @@ const btnMp3 = document.getElementById('btnMp3');
 const btnOgg = document.getElementById('btnOgg');
 const btnFlac = document.getElementById('btnFlac');
 const btnWav = document.getElementById('btnWav');
+const historyListEl = document.getElementById('historyList');
+const histCountEl = document.getElementById('histCount');
+const histClearBtn = document.getElementById('histClear');
 
 const speedSlider = document.getElementById('speedSlider');
 const ampSlider = document.getElementById('ampSlider');
@@ -463,159 +540,252 @@ function applyEqPreset(name){
 }
 eqPresetSelect.addEventListener('change', ()=> applyEqPreset(eqPresetSelect.value));
 
-// ---------- file loading ----------
+// ---------- helpers ----------
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function setStatus(msg, cls){
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (cls?(' '+cls):'');
+}
+function dbToGain(db){ return Math.pow(10, db/20); }
+
+// ---------- multi-file: render daftar file ----------
+const STATUS_LABEL = { reading:'Membaca', pending:'Siap', processing:'Memproses', done:'Selesai', error:'Error' };
+
+function renderFileList(){
+  if(!queue.length){
+    fileListEl.innerHTML = '';
+    fileListFoot.style.display = 'none';
+    return;
+  }
+  fileListFoot.style.display = 'flex';
+  fileCountEl.textContent = `${queue.length} file — ${queue.filter(it=>it.status==='done').length} selesai diproses`;
+  fileListEl.innerHTML = queue.map(item=>{
+    const meta = item.originalBuffer
+      ? `${item.originalBuffer.duration.toFixed(1)}s, ${item.originalBuffer.sampleRate}Hz, ${item.originalBuffer.numberOfChannels}ch`
+      : (item.status==='error' ? (item.errorMsg||'Gagal membaca') : 'Membaca file...');
+    const previewBtn = (item.status==='done' && item.previewURL)
+      ? `<button class="fi-preview" data-id="${item.id}" title="Preview hasil">▶</button>` : '';
+    return `<div class="file-item" data-id="${item.id}">
+      <div class="fi-info">
+        <div class="fi-name">${escapeHtml(item.name)}</div>
+        <div class="fi-meta">${meta}</div>
+      </div>
+      ${previewBtn}
+      <span class="fi-status ${item.status}">${STATUS_LABEL[item.status]||item.status}</span>
+      <button class="fi-remove" data-id="${item.id}" title="Hapus dari daftar">✕</button>
+    </div>`;
+  }).join('');
+}
+
+fileListEl.addEventListener('click', (e)=>{
+  const rm = e.target.closest('.fi-remove');
+  if(rm){
+    if(isProcessing || isExporting) return;
+    const id = rm.dataset.id;
+    const item = queue.find(it=>it.id===id);
+    if(item && item.previewURL) URL.revokeObjectURL(item.previewURL);
+    queue = queue.filter(it=>it.id!==id);
+    renderFileList();
+    updateProcessAvailability();
+    return;
+  }
+  const pv = e.target.closest('.fi-preview');
+  if(pv){
+    const item = queue.find(it=>it.id===pv.dataset.id);
+    if(item && item.previewURL){
+      preview.src = item.previewURL;
+      preview.style.display = 'block';
+      preview.play().catch(()=>{});
+    }
+  }
+});
+
+clearAllBtn.addEventListener('click', ()=>{
+  if(isProcessing || isExporting) return;
+  queue.forEach(it=>{ if(it.previewURL) URL.revokeObjectURL(it.previewURL); });
+  queue = [];
+  renderFileList();
+  updateProcessAvailability();
+});
+
+function updateProcessAvailability(){
+  const hasReady = queue.some(it=>it.originalBuffer);
+  processBtn.disabled = !hasReady || isProcessing || isExporting;
+  if(!queue.some(it=>it.status==='done')){
+    fmtRow.style.display='none'; randomNameNote.style.display='none'; stepHint.style.display='none';
+  }
+  if(!queue.length) setStatus('', '');
+}
+
+// ---------- file loading (multi) ----------
 dropZone.addEventListener('click', ()=>{ if(!isProcessing && !isExporting) fileInput.click(); });
 ['dragover','dragenter'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.add('drag');}));
 ['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.remove('drag');}));
 dropZone.addEventListener('drop', e=>{
   if(isProcessing || isExporting) return;
-  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  const files = Array.from(e.dataTransfer.files || []);
+  if(files.length) loadFiles(files);
 });
 fileInput.addEventListener('change', e=>{
-  const file = e.target.files[0];
+  const files = Array.from(e.target.files || []);
   fileInput.value = ''; // reset supaya file yang sama bisa dipilih ulang
-  if(file) loadFile(file);
+  if(files.length) loadFiles(files);
 });
 
-async function loadFile(file){
-  setStatus('Membaca file...', '');
+async function loadFiles(files){
   fmtRow.style.display='none'; randomNameNote.style.display='none'; stepHint.style.display='none';
-  preview.style.display='none';
-  processBtn.disabled = true;
-  renderedBuffer = null;
-  if(currentPreviewURL){ URL.revokeObjectURL(currentPreviewURL); currentPreviewURL = null; }
-  try{
-    const arr = await file.arrayBuffer();
-    originalBuffer = await audioCtx.decodeAudioData(arr);
-    currentFileBase = (file.name.replace(/\.[^.]+$/, '') || 'audio').replace(/[^a-zA-Z0-9_\-]+/g,'_');
-    fileNameEl.textContent = `${file.name} — ${originalBuffer.duration.toFixed(1)}s, ${originalBuffer.sampleRate}Hz, ${originalBuffer.numberOfChannels}ch`;
-    processBtn.disabled = false;
-    setStatus('Siap diproses.', 'ok');
-  }catch(err){
-    console.error(err);
-    originalBuffer = null;
-    setStatus('Gagal membaca file audio. Coba format lain.', 'err');
+  for(const file of files){
+    const item = {
+      id: 'f' + (idCounter++),
+      file, name: file.name,
+      originalBuffer: null, renderedBuffer: null, outDuration: 0,
+      previewURL: null, status: 'reading', errorMsg: null
+    };
+    queue.push(item);
+    renderFileList();
+    try{
+      const arr = await file.arrayBuffer();
+      item.originalBuffer = await audioCtx.decodeAudioData(arr);
+      item.status = 'pending';
+    }catch(err){
+      console.error(err);
+      item.status = 'error';
+      item.errorMsg = 'Gagal membaca file audio.';
+    }
+    renderFileList();
+    updateProcessAvailability();
   }
+  const readyCount = queue.filter(it=>it.originalBuffer).length;
+  if(readyCount>0) setStatus(`${readyCount} file siap diproses.`, 'ok');
+  else setStatus('Tidak ada file yang berhasil dibaca.', 'err');
 }
 
-function setStatus(msg, cls){
-  statusEl.textContent = msg;
-  statusEl.className = 'status' + (cls?(' '+cls):'');
+// ---------- render/proses efek untuk 1 buffer (dipakai di loop batch) ----------
+async function renderProcessed(originalBuffer, speed, ampDb, maxDur, eqGainsArr){
+  const gain = dbToGain(ampDb);
+  const segDuration = originalBuffer.duration;
+
+  // Sample rate & channel keluaran dijaga agar sesuai batas upload Roblox (<=48kHz, mono/stereo).
+  const outSampleRate = ROBLOX_MAX_SAMPLE_RATE;
+  const outChannels = Math.min(originalBuffer.numberOfChannels, ROBLOX_MAX_CHANNELS);
+
+  const outDuration = Math.min(segDuration / speed, maxDur);
+  const frames = Math.max(1, Math.ceil(outDuration * outSampleRate));
+
+  // ---- Anti-alias pre-filter (mencegah "muffled"/kotor tambahan) ----
+  let sourceBuffer = originalBuffer;
+  if(speed > 1){
+    const antiAliasCutoff = Math.min(
+      (outSampleRate / 2 / speed) * 0.94,
+      originalBuffer.sampleRate / 2 - 1
+    );
+    if(antiAliasCutoff > 20 && antiAliasCutoff < originalBuffer.sampleRate / 2){
+      const preCtx = new OfflineAudioContext(
+        originalBuffer.numberOfChannels,
+        originalBuffer.length,
+        originalBuffer.sampleRate
+      );
+      const preSrc = preCtx.createBufferSource();
+      preSrc.buffer = originalBuffer;
+      let stage = preSrc;
+      const LP_STAGES = 3;
+      for(let i=0;i<LP_STAGES;i++){
+        const lp = preCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = antiAliasCutoff;
+        lp.Q.value = 0.7071;
+        stage.connect(lp);
+        stage = lp;
+      }
+      stage.connect(preCtx.destination);
+      preSrc.start(0);
+      sourceBuffer = await preCtx.startRendering();
+    }
+  }
+
+  const offlineCtx = new OfflineAudioContext(outChannels, frames, outSampleRate);
+
+  const src = offlineCtx.createBufferSource();
+  src.buffer = sourceBuffer;
+  src.playbackRate.value = speed;
+
+  let node = offlineCtx.createGain();
+  node.gain.value = 1;
+  src.connect(node);
+
+  // EQ 10-band
+  eqGainsArr.forEach((g, i)=>{
+    if(g && g !== 0){
+      const filt = offlineCtx.createBiquadFilter();
+      filt.type = i===0 ? 'lowshelf' : i===9 ? 'highshelf' : 'peaking';
+      filt.frequency.value = EQ_FREQS[i];
+      filt.gain.value = g;
+      if(filt.type === 'peaking') filt.Q.value = 1.4;
+      node.connect(filt);
+      node = filt;
+    }
+  });
+
+  const gainNode = offlineCtx.createGain();
+  gainNode.gain.value = gain;
+  node.connect(gainNode).connect(offlineCtx.destination);
+
+  src.start(0, 0, segDuration);
+
+  const renderedBuffer = await offlineCtx.startRendering();
+  return { renderedBuffer, outDuration };
 }
 
-// ---------- processing ----------
-function dbToGain(db){ return Math.pow(10, db/20); }
-
+// ---------- batch processing ----------
 processBtn.addEventListener('click', async ()=>{
-  if(!originalBuffer || isProcessing || isExporting) return;
+  const pending = queue.filter(it=>it.originalBuffer);
+  if(!pending.length || isProcessing || isExporting) return;
   isProcessing = true;
   processBtn.disabled = true;
   fmtRow.style.display = 'none'; randomNameNote.style.display = 'none'; stepHint.style.display = 'none';
-  setStatus('Memproses audio...', '');
-  try{
-    const speed = parseFloat(speedSlider.value);
-    const ampDb = parseFloat(ampSlider.value);
-    const gain = dbToGain(ampDb);
-    // Dijaga agar durasi hasil tidak pernah melebihi batas resmi Roblox (7 menit)
-    const maxDur = Math.min(parseFloat(maxSlider.value), ROBLOX_MAX_DURATION);
+  progOuter.style.display = 'block';
+  progInner.style.width = '0%';
+  setStatus(`Memproses ${pending.length} file...`, '');
 
-    const segDuration = originalBuffer.duration;
+  const speed = parseFloat(speedSlider.value);
+  const ampDb = parseFloat(ampSlider.value);
+  const maxDur = Math.min(parseFloat(maxSlider.value), ROBLOX_MAX_DURATION);
+  const eqSnapshot = eqGains.slice();
 
-    // Sample rate & channel keluaran dijaga agar sesuai batas upload Roblox (<=48kHz, mono/stereo).
-    // PENTING: playbackRate menaikkan pitch/frekuensi sebesar faktor "speed" — jadi konten yang
-    // tadinya di dekat Nyquist sumber akan bergeser ke atas dan mudah terpotong/muffled saat
-    // di-render. Selalu render di 48kHz (batas maksimum Roblox) — bukan hanya menyamai sample rate
-    // sumber — supaya lebih banyak frekuensi tinggi yang selamat setelah pergeseran akibat speed-up.
-    const outSampleRate = ROBLOX_MAX_SAMPLE_RATE;
-    const outChannels = Math.min(originalBuffer.numberOfChannels, ROBLOX_MAX_CHANNELS);
-
-    const outDuration = Math.min(segDuration / speed, maxDur);
-    const frames = Math.max(1, Math.ceil(outDuration * outSampleRate));
-
-    // ---- Anti-alias pre-filter (mencegah "muffled"/kotor tambahan) ----
-    // Saat playbackRate > 1, semua frekuensi ikut naik sebesar faktor speed. Kalau ada
-    // konten sumber di atas (outSampleRate/2)/speed, ia akan lewat dari batas Nyquist
-    // keluaran (24kHz @ 48kHz) dan bisa ter-alias/foldback jadi noise kasar saat resample
-    // native browser (bukan cuma teredam halus). Filter di bawah ini membersihkan konten
-    // itu DI SAMPLE RATE ASLI (sebelum speed-up), pakai cascade lowpass biquad supaya
-    // roll-off-nya curam & bersih (bukan aliasing), sehingga hasil akhir tetap sejernih
-    // mungkin sampai batas Nyquist yang memang tidak bisa dilewati (lihat computeEffectiveBandwidthKhz).
-    let sourceBuffer = originalBuffer;
-    if (speed > 1) {
-      const antiAliasCutoff = Math.min(
-        (outSampleRate / 2 / speed) * 0.94, // sedikit margin di bawah Nyquist post-shift
-        originalBuffer.sampleRate / 2 - 1
-      );
-      if (antiAliasCutoff > 20 && antiAliasCutoff < originalBuffer.sampleRate / 2) {
-        const preCtx = new OfflineAudioContext(
-          originalBuffer.numberOfChannels,
-          originalBuffer.length,
-          originalBuffer.sampleRate
-        );
-        const preSrc = preCtx.createBufferSource();
-        preSrc.buffer = originalBuffer;
-        let stage = preSrc;
-        const LP_STAGES = 3; // cascade -> roll-off lebih curam & bersih daripada 1 biquad
-        for (let i = 0; i < LP_STAGES; i++) {
-          const lp = preCtx.createBiquadFilter();
-          lp.type = 'lowpass';
-          lp.frequency.value = antiAliasCutoff;
-          lp.Q.value = 0.7071; // Butterworth-ish, hindari resonansi/peak di cutoff
-          stage.connect(lp);
-          stage = lp;
-        }
-        stage.connect(preCtx.destination);
-        preSrc.start(0);
-        sourceBuffer = await preCtx.startRendering();
-      }
+  let done = 0;
+  for(const item of pending){
+    item.status = 'processing';
+    renderFileList();
+    setStatus(`Memproses (${done+1}/${pending.length}): ${item.name}`, '');
+    try{
+      const { renderedBuffer, outDuration } = await renderProcessed(item.originalBuffer, speed, ampDb, maxDur, eqSnapshot);
+      item.renderedBuffer = renderedBuffer;
+      item.outDuration = outDuration;
+      if(item.previewURL) URL.revokeObjectURL(item.previewURL);
+      item.previewURL = URL.createObjectURL(bufferToWav(renderedBuffer));
+      item.status = 'done';
+    }catch(err){
+      console.error(err);
+      item.status = 'error';
+      item.errorMsg = 'Gagal diproses.';
     }
-
-    const offlineCtx = new OfflineAudioContext(outChannels, frames, outSampleRate);
-
-    const src = offlineCtx.createBufferSource();
-    src.buffer = sourceBuffer;
-    src.playbackRate.value = speed;
-
-    let node = offlineCtx.createGain(); // mix bus
-    node.gain.value = 1;
-    src.connect(node);
-
-    // EQ 10-band (chain biquad filter, sama persis dengan dashboard.js)
-    eqGains.forEach((g, i)=>{
-      if(g && g !== 0){
-        const filt = offlineCtx.createBiquadFilter();
-        filt.type = i===0 ? 'lowshelf' : i===9 ? 'highshelf' : 'peaking';
-        filt.frequency.value = EQ_FREQS[i];
-        filt.gain.value = g;
-        if(filt.type === 'peaking') filt.Q.value = 1.4;
-        node.connect(filt);
-        node = filt;
-      }
-    });
-
-    // Gain (amplify dB)
-    const gainNode = offlineCtx.createGain();
-    gainNode.gain.value = gain;
-    node.connect(gainNode).connect(offlineCtx.destination);
-
-    src.start(0, 0, segDuration);
-
-    renderedBuffer = await offlineCtx.startRendering();
-
-    if(currentPreviewURL){ URL.revokeObjectURL(currentPreviewURL); }
-    const wavBlob = bufferToWav(renderedBuffer);
-    currentPreviewURL = URL.createObjectURL(wavBlob);
-    preview.src = currentPreviewURL;
-    preview.style.display = 'block';
-    fmtRow.style.display = 'flex'; randomNameNote.style.display = 'block'; stepHint.style.display = 'block';
-    setStatus(`Selesai — durasi hasil: ${outDuration.toFixed(1)}s. Pilih format unduhan.`, 'ok');
-  }catch(err){
-    console.error(err);
-    setStatus('Terjadi kesalahan saat memproses audio.', 'err');
-  }finally{
-    isProcessing = false;
-    processBtn.disabled = false;
+    done++;
+    progInner.style.width = (done/pending.length*100)+'%';
+    renderFileList();
   }
+
+  isProcessing = false;
+  const successCount = pending.filter(it=>it.status==='done').length;
+  if(successCount>0){
+    fmtRow.style.display = 'flex'; randomNameNote.style.display = 'block'; stepHint.style.display = 'block';
+    setStatus(`Selesai memproses ${successCount}/${pending.length} file. Pilih format untuk mengunduh semuanya.`, 'ok');
+  }else{
+    setStatus('Gagal memproses seluruh file.', 'err');
+  }
+  updateProcessAvailability();
+  setTimeout(()=>{ progOuter.style.display='none'; progInner.style.width='0%'; }, 800);
 });
 
 // ---------- WAV encoder (dipakai untuk preview <audio> & export WAV) ----------
@@ -665,8 +835,6 @@ function downloadBlob(blob, filename){
 }
 
 // ---------- Random filename (6-10 karakter, huruf+angka) ----------
-// Nama file hasil export diacak jadi kombinasi huruf & angka (bukan "xxx_converted")
-// supaya tidak terlihat mencurigakan/ditandai saat di-upload sebagai Audio asset di Roblox.
 function randomAlnumName(){
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   const len = 6 + Math.floor(Math.random() * 5); // 6..10 karakter
@@ -697,58 +865,144 @@ function beginExport(msg){
   setExportButtonsEnabled(false);
   progOuter.style.display = 'block';
   progInner.style.width = '0%';
-  stepHint.style.display = 'none'; // user sudah memilih format, hint tidak perlu lagi
+  stepHint.style.display = 'none';
   setStatus(msg, '');
 }
 
 function finishExport(){
   isExporting = false;
-  processBtn.disabled = false;
+  updateProcessAvailability();
   setExportButtonsEnabled(true);
   setTimeout(()=>{ progOuter.style.display='none'; progInner.style.width='0%'; }, 800);
 }
 
-// ---------- MP3 export ----------
-btnMp3.addEventListener('click', ()=>{
-  if(!renderedBuffer || isExporting || isProcessing) return;
+// =====================================================================
+// ---------- Process History (dicatat & disimpan sebagai cache lokal) ----------
+// =====================================================================
+const HISTORY_KEY = 'wildeonAudioHistory';
+const HISTORY_MAX = 300; // batas jumlah entri yang disimpan di cache
+
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(err){
+    console.warn('Gagal membaca history dari cache', err);
+    return [];
+  }
+}
+function saveHistory(list){
+  try{
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX)));
+  }catch(err){
+    console.warn('Gagal menyimpan history ke cache', err);
+  }
+}
+function logHistory(entry){
+  const list = loadHistory();
+  list.unshift(entry);
+  saveHistory(list);
+  renderHistory();
+}
+function fmtSize(bytes){
+  if(bytes >= 1024*1024) return (bytes/1024/1024).toFixed(2)+' MB';
+  return Math.max(1, Math.round(bytes/1024))+' KB';
+}
+function fmtDate(ts){
+  try{
+    return new Date(ts).toLocaleString('id-ID', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return ''; }
+}
+function renderHistory(){
+  const list = loadHistory();
+  histCountEl.textContent = list.length ? `${list.length} entri tersimpan di cache browser ini.` : '';
+  if(!list.length){
+    historyListEl.innerHTML = '<div class="history-empty">Belum ada riwayat proses. File yang kamu unduh akan otomatis tercatat di sini.</div>';
+    return;
+  }
+  historyListEl.innerHTML = list.map(h=>`
+    <div class="history-item">
+      <div class="hi-info">
+        <div class="hi-name">${escapeHtml(h.originalName)} → ${escapeHtml(h.filename)}</div>
+        <div class="hi-meta">Speed ${h.speed}x · Amp ${h.ampDb>0?'+':''}${h.ampDb}dB · Durasi ${h.outDuration}s · ${fmtSize(h.sizeBytes)} · ${fmtDate(h.timestamp)}</div>
+      </div>
+      <span class="hist-badge ${h.format.toLowerCase()}">${h.format}</span>
+    </div>
+  `).join('');
+}
+histClearBtn.addEventListener('click', ()=>{
+  if(!loadHistory().length) return;
+  if(!confirm('Hapus seluruh riwayat proses dari cache browser ini?')) return;
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+});
+renderHistory(); // muat riwayat tersimpan saat halaman dibuka
+
+function makeHistoryEntry(item, format, filename, sizeBytes){
+  return {
+    originalName: item.name,
+    filename,
+    format,
+    sizeBytes,
+    outDuration: item.outDuration.toFixed(1),
+    speed: parseFloat(speedSlider.value).toFixed(1),
+    ampDb: parseFloat(ampSlider.value),
+    timestamp: Date.now()
+  };
+}
+
+// =====================================================================
+// ---------- ekspor batch: MP3, OGG, FLAC, WAV ----------
+// =====================================================================
+
+// ---------- MP3 (sync, lamejs) ----------
+function encodeMp3Sync(buffer){
+  const ch = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const encoder = new lamejs.Mp3Encoder(ch, sr, 192);
+  const left = floatTo16(buffer.getChannelData(0));
+  const right = ch>1 ? floatTo16(buffer.getChannelData(1)) : null;
+  const block = 1152;
+  const chunks = [];
+  for(let i=0;i<left.length;i+=block){
+    const l = left.subarray(i, i+block);
+    const buf = ch>1 ? encoder.encodeBuffer(l, right.subarray(i, i+block)) : encoder.encodeBuffer(l);
+    if(buf.length>0) chunks.push(new Uint8Array(buf));
+  }
+  const end = encoder.flush();
+  if(end.length>0) chunks.push(new Uint8Array(end));
+  return new Blob(chunks, {type:'audio/mp3'});
+}
+
+btnMp3.addEventListener('click', async ()=>{
+  const items = queue.filter(it=>it.status==='done' && it.renderedBuffer);
+  if(!items.length || isExporting || isProcessing) return;
   if(typeof lamejs === 'undefined'){
     setStatus('Encoder MP3 gagal dimuat (periksa file lib/lame.min.js sudah ter-deploy).', 'err');
     return;
   }
-  beginExport('Meng-encode MP3...');
-  try{
-    const ch = renderedBuffer.numberOfChannels;
-    const sr = renderedBuffer.sampleRate;
-    const encoder = new lamejs.Mp3Encoder(ch, sr, 192);
-    const left = floatTo16(renderedBuffer.getChannelData(0));
-    const right = ch>1 ? floatTo16(renderedBuffer.getChannelData(1)) : null;
-    const block = 1152;
-    const chunks = [];
-    for(let i=0;i<left.length;i+=block){
-      const l = left.subarray(i, i+block);
-      const buf = ch>1 ? encoder.encodeBuffer(l, right.subarray(i, i+block)) : encoder.encodeBuffer(l);
-      if(buf.length>0) chunks.push(new Uint8Array(buf));
-    }
-    const end = encoder.flush();
-    if(end.length>0) chunks.push(new Uint8Array(end));
-    const blob = new Blob(chunks, {type:'audio/mp3'});
-    downloadBlob(blob, randomAlnumName()+'.mp3');
-    const warn = checkRobloxSize(blob);
-    setStatus(warn || 'MP3 berhasil diunduh.', warn ? 'err' : 'ok');
-  }catch(err){
-    console.error(err);
-    setStatus('Gagal meng-encode MP3.', 'err');
-  }finally{
-    finishExport();
+  beginExport(`Meng-encode MP3 (0/${items.length})...`);
+  let ok=0, warnMsg=null;
+  for(let i=0;i<items.length;i++){
+    const item = items[i];
+    setStatus(`Meng-encode MP3 (${i+1}/${items.length}): ${item.name}`, '');
+    try{
+      const blob = encodeMp3Sync(item.renderedBuffer);
+      const filename = randomAlnumName()+'.mp3';
+      downloadBlob(blob, filename);
+      const warn = checkRobloxSize(blob);
+      if(warn) warnMsg = warn;
+      logHistory(makeHistoryEntry(item, 'MP3', filename, blob.size));
+      ok++;
+    }catch(err){ console.error(err); }
+    progInner.style.width = ((i+1)/items.length*100)+'%';
+    await new Promise(r=>setTimeout(r, 150)); // jeda kecil antar-download
   }
+  setStatus((warnMsg?warnMsg+' ':'')+`${ok}/${items.length} file MP3 berhasil diunduh.`, warnMsg?'err':'ok');
+  finishExport();
 });
 
-// ---------- OGG (Opus) export — di-encode sepenuhnya via WebAssembly, instan & konsisten di semua browser ----------
-// Menggunakan encoderWorker resmi dari opus-recorder, di-host LOKAL di lib/encoderWorker.min.js
-// (bukan dari CDN). Ini kunci perbaikannya: `new Worker(url)` untuk URL cross-origin banyak diblokir
-// atau tidak konsisten antar browser (Firefox khususnya), sehingga sebelumnya export OGG sering gagal
-// diam-diam. Dengan file worker berada di origin yang sama (di-deploy bareng lewat Vercel), Worker
-// selalu bisa dibuat dengan andal. Protokol pesan: init -> getHeaderPages -> encode (per-chunk) -> done.
+// ---------- OGG (Opus) — WebAssembly, worker lokal (lihat README.md) ----------
 const OPUS_ENCODER_URL = 'lib/encoderWorker.min.js';
 
 function encodeOggOpus(buffer, onProgress){
@@ -798,7 +1052,7 @@ function encodeOggOpus(buffer, onProgress){
 
     function feedNextBatch(){
       if(settled) return;
-      const BATCH = 20; // jumlah chunk per macrotask, supaya UI tetap responsif
+      const BATCH = 20;
       for(let b=0; b<BATCH; b++){
         if(offset >= totalSamples){
           worker.postMessage({command:'done'});
@@ -808,7 +1062,7 @@ function encodeOggOpus(buffer, onProgress){
         const chunkBuffers = [];
         const transferList = [];
         for(let c=0;c<numberOfChannels;c++){
-          const chunk = new Float32Array(bufferLength); // sisa otomatis 0 (silent-padded)
+          const chunk = new Float32Array(bufferLength);
           chunk.set(channelData[c].subarray(offset, offset+len));
           chunkBuffers.push(chunk);
           transferList.push(chunk.buffer);
@@ -823,10 +1077,10 @@ function encodeOggOpus(buffer, onProgress){
     worker.postMessage({
       command: 'init',
       bufferLength: bufferLength,
-      encoderSampleRate: 48000, // wajib salah satu rate valid Opus; resampler internal menangani konversi dari originalSampleRate
+      encoderSampleRate: 48000,
       originalSampleRate: originalSampleRate,
       numberOfChannels: numberOfChannels,
-      encoderApplication: 2049, // full-band audio (musik)
+      encoderApplication: 2049,
       encoderFrameSize: 20,
       maxFramesPerPage: 40,
       resampleQuality: 10,
@@ -836,23 +1090,36 @@ function encodeOggOpus(buffer, onProgress){
 }
 
 btnOgg.addEventListener('click', async ()=>{
-  if(!renderedBuffer || isExporting || isProcessing) return;
-  beginExport('Meng-encode OGG (Opus)...');
-  try{
-    const blob = await encodeOggOpus(renderedBuffer, p=>{ progInner.style.width = (p*100)+'%'; });
-    downloadBlob(blob, randomAlnumName()+'.ogg');
-    const warn = checkRobloxSize(blob);
-    setStatus(warn || 'OGG berhasil diunduh.', warn ? 'err' : 'ok');
-  }catch(err){
-    console.error(err);
-    setStatus('Gagal mengunduh OGG. Pastikan file lib/encoderWorker.min.js ikut ter-deploy (lihat README.md).', 'err');
-  }finally{
-    finishExport();
+  const items = queue.filter(it=>it.status==='done' && it.renderedBuffer);
+  if(!items.length || isExporting || isProcessing) return;
+  beginExport(`Meng-encode OGG (0/${items.length})...`);
+  let ok=0, warnMsg=null;
+  for(let i=0;i<items.length;i++){
+    const item = items[i];
+    setStatus(`Meng-encode OGG (${i+1}/${items.length}): ${item.name}`, '');
+    try{
+      const blob = await encodeOggOpus(item.renderedBuffer, p=>{
+        const base = i/items.length, span = 1/items.length;
+        progInner.style.width = ((base + p*span)*100)+'%';
+      });
+      const filename = randomAlnumName()+'.ogg';
+      downloadBlob(blob, filename);
+      const warn = checkRobloxSize(blob);
+      if(warn) warnMsg = warn;
+      logHistory(makeHistoryEntry(item, 'OGG', filename, blob.size));
+      ok++;
+    }catch(err){
+      console.error(err);
+      setStatus(`Gagal encode OGG untuk ${item.name}.`, 'err');
+    }
+    progInner.style.width = ((i+1)/items.length*100)+'%';
+    await new Promise(r=>setTimeout(r, 150));
   }
+  setStatus((warnMsg?warnMsg+' ':'')+`${ok}/${items.length} file OGG berhasil diunduh.`, warnMsg?'err':'ok');
+  finishExport();
 });
 
-// ---------- FLAC export — encode lossless via libflac.js (WebAssembly), di worker terpisah ----------
-// Worker: flacWorker.js, library: lib/libflac.min.wasm.js + lib/libflac.min.wasm.wasm (semua lokal).
+// ---------- FLAC — worker terpisah (flacWorker.js + lib/libflac.min.wasm.*) ----------
 let flacWorkerInstance = null;
 function getFlacWorker(){
   if(!flacWorkerInstance){
@@ -861,64 +1128,88 @@ function getFlacWorker(){
   return flacWorkerInstance;
 }
 
-btnFlac.addEventListener('click', ()=>{
-  if(!renderedBuffer || isExporting || isProcessing) return;
-  beginExport('Meng-encode FLAC...');
-  progInner.style.width = '50%';
+function encodeFlac(buffer){
+  return new Promise((resolve, reject)=>{
+    try{
+      const worker = getFlacWorker();
+      const channelData = [];
+      for(let c=0;c<buffer.numberOfChannels;c++) channelData.push(buffer.getChannelData(c).slice());
 
-  try{
-    const worker = getFlacWorker();
-    const channelData = [];
-    for(let c=0;c<renderedBuffer.numberOfChannels;c++) channelData.push(renderedBuffer.getChannelData(c).slice());
+      const handleMessage = (e)=>{
+        const data = e.data || {};
+        if(data.type === 'ready') return;
+        if(data.type === 'error'){
+          worker.removeEventListener('message', handleMessage);
+          reject(new Error(data.message));
+        } else if(data.type === 'done'){
+          worker.removeEventListener('message', handleMessage);
+          resolve(new Blob([data.data], {type:'audio/flac'}));
+        }
+      };
+      worker.addEventListener('message', handleMessage);
+      worker.postMessage({
+        command:'encode',
+        channelData,
+        sampleRate: buffer.sampleRate,
+        channels: buffer.numberOfChannels,
+        compression: 5
+      }, channelData.map(c=>c.buffer));
+    }catch(err){
+      reject(err);
+    }
+  });
+}
 
-    const handleMessage = (e)=>{
-      const data = e.data || {};
-      if(data.type === 'ready') return; // worker baru siap, job akan diproses otomatis
-      if(data.type === 'error'){
-        worker.removeEventListener('message', handleMessage);
-        setStatus('Gagal meng-encode FLAC: ' + data.message, 'err');
-        finishExport();
-      } else if(data.type === 'done'){
-        worker.removeEventListener('message', handleMessage);
-        progInner.style.width = '100%';
-        const blob = new Blob([data.data], {type:'audio/flac'});
-        downloadBlob(blob, randomAlnumName()+'.flac');
-        const warn = checkRobloxSize(blob);
-        setStatus((warn?warn+' ':'')+'FLAC berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
-        finishExport();
-      }
-    };
-    worker.addEventListener('message', handleMessage);
-    worker.postMessage({
-      command:'encode',
-      channelData,
-      sampleRate: renderedBuffer.sampleRate,
-      channels: renderedBuffer.numberOfChannels,
-      compression: 5
-    }, channelData.map(c=>c.buffer));
-  }catch(err){
-    console.error(err);
-    setStatus('Gagal meng-encode FLAC. Pastikan flacWorker.js dan folder lib/ ikut ter-deploy (lihat README.md).', 'err');
-    finishExport();
+btnFlac.addEventListener('click', async ()=>{
+  const items = queue.filter(it=>it.status==='done' && it.renderedBuffer);
+  if(!items.length || isExporting || isProcessing) return;
+  beginExport(`Meng-encode FLAC (0/${items.length})...`);
+  let ok=0, warnMsg=null;
+  for(let i=0;i<items.length;i++){
+    const item = items[i];
+    setStatus(`Meng-encode FLAC (${i+1}/${items.length}): ${item.name}`, '');
+    try{
+      const blob = await encodeFlac(item.renderedBuffer);
+      const filename = randomAlnumName()+'.flac';
+      downloadBlob(blob, filename);
+      const warn = checkRobloxSize(blob);
+      if(warn) warnMsg = warn;
+      logHistory(makeHistoryEntry(item, 'FLAC', filename, blob.size));
+      ok++;
+    }catch(err){
+      console.error(err);
+      setStatus(`Gagal encode FLAC untuk ${item.name}. Pastikan flacWorker.js & lib/ ikut ter-deploy.`, 'err');
+    }
+    progInner.style.width = ((i+1)/items.length*100)+'%';
+    await new Promise(r=>setTimeout(r, 150));
   }
+  setStatus((warnMsg?warnMsg+' ':'')+`${ok}/${items.length} file FLAC berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)`, warnMsg?'err':'ok');
+  finishExport();
 });
 
-// ---------- WAV export — instan, tanpa encoding tambahan (PCM mentah) ----------
-btnWav.addEventListener('click', ()=>{
-  if(!renderedBuffer || isExporting || isProcessing) return;
-  beginExport('Menyiapkan WAV...');
-  progInner.style.width = '100%';
-  try{
-    const blob = bufferToWav(renderedBuffer);
-    downloadBlob(blob, randomAlnumName()+'.wav');
-    const warn = checkRobloxSize(blob);
-    setStatus((warn?warn+' ':'')+'WAV berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)', warn?'err':'ok');
-  }catch(err){
-    console.error(err);
-    setStatus('Gagal mengunduh WAV.', 'err');
-  }finally{
-    finishExport();
+// ---------- WAV — instan, tanpa encoding tambahan (PCM mentah) ----------
+btnWav.addEventListener('click', async ()=>{
+  const items = queue.filter(it=>it.status==='done' && it.renderedBuffer);
+  if(!items.length || isExporting || isProcessing) return;
+  beginExport(`Menyiapkan WAV (0/${items.length})...`);
+  let ok=0, warnMsg=null;
+  for(let i=0;i<items.length;i++){
+    const item = items[i];
+    setStatus(`Menyiapkan WAV (${i+1}/${items.length}): ${item.name}`, '');
+    try{
+      const blob = bufferToWav(item.renderedBuffer);
+      const filename = randomAlnumName()+'.wav';
+      downloadBlob(blob, filename);
+      const warn = checkRobloxSize(blob);
+      if(warn) warnMsg = warn;
+      logHistory(makeHistoryEntry(item, 'WAV', filename, blob.size));
+      ok++;
+    }catch(err){ console.error(err); }
+    progInner.style.width = ((i+1)/items.length*100)+'%';
+    await new Promise(r=>setTimeout(r, 150));
   }
+  setStatus((warnMsg?warnMsg+' ':'')+`${ok}/${items.length} file WAV berhasil diunduh. (Roblox tidak menerima format ini — gunakan MP3/OGG untuk upload ke Roblox.)`, warnMsg?'err':'ok');
+  finishExport();
 });
 </script>
 </body>
